@@ -58,9 +58,12 @@ first.
 
 ## Local route (Apptainer image)
 
-Use it only when `IHMV_SIF` points to an image or the user names one. Never
-build the image: that needs Chimera and ChimeraX downloads and about 25
-minutes (see the IHMValidation README).
+Use it only when `IHMV_SIF` points to an image or the user names one. If
+neither is true, ask the user for the path. Never search the filesystem for
+images (`find`, `locate`): on shared or network filesystems that is slow and
+reads directories the user never mentioned. Never build the image: that needs
+Chimera and ChimeraX downloads and about 25 minutes (see the IHMValidation
+README).
 
 ```bash
 apptainer run --pid "$IHMV_SIF" --cache-root <cache-dir> --output-root <out-dir> -f <absolute-path-to-file>
