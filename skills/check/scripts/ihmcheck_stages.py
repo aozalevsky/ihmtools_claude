@@ -323,3 +323,135 @@ def stage_linkage(path, dangling):
                 fix=_FIX['reference to undefined id']))
     return _result('linkage', findings,
                    'dataset usage and core references (dictionary not available)')
+
+
+# ---- stage 5 -------------------------------------------------------------
+
+_RANGE_PROBLEMS = (
+    ('type of any representation segment',
+     'do not match the primitive of the covering representation segment',
+     'atoms only in atomic (by-atom) segments, spheres only in coarse-grained '
+     'segments',
+     'make _ihm_model_representation_details match the coordinates: declare '
+     'these residues atomic, or deposit them as spheres'),
+    ('representation',
+     'are not covered by any representation segment of the model',
+     "every atom or sphere covered by the model's representation",
+     'extend _ihm_model_representation_details to cover these residues, or '
+     'remove the coordinates'),
+    ('assembly',
+     "are outside the model's assembly",
+     "every atom or sphere inside the model's assembly",
+     'add these residues to the assembly (_ihm_struct_assembly_details) or '
+     'remove the coordinates'),
+    ('Multiple atoms with same',
+     'are duplicates (same asym, seq_id, atom_id, alt_id)',
+     'unique atoms',
+     'remove or rename the duplicates; use alt_id for alternate conformations'),
+)
+
+
+def _classify_range_error(msg):
+    for needle, observed, expected, fix in _RANGE_PROBLEMS:
+        if needle in msg:
+            return observed, expected, fix
+    return 'were rejected by python-ihm', 'coordinates python-ihm can write', \
+        'see the evidence'
+
+
+def stage_representation(systems):
+    """Report atoms/spheres python-ihm would refuse to write."""
+    checker_cls = getattr(ihm.dumper, '_RangeChecker', None)
+    if checker_cls is None:
+        return StageResult('representation', 'not_checked',
+                           'this python-ihm version has no _RangeChecker')
+    groups = {}
+    findings = []
+    count = 0
+    for system in systems:
+        for _, model in system._all_models():
+            try:
+                checker = checker_cls(model, True)
+            except Exception as e:
+                findings.append(Finding(
+                    'ERROR', 'ihm_model_list', '', f'model {model._id}',
+                    observed="the model's representation or assembly cannot be "
+                             'resolved',
+                    expected='a model with a valid assembly and representation',
+                    evidence=f'{type(e).__name__}: {_clean(str(e))}',
+                    fix='check assembly_id and representation_id for this model'))
+                continue
+            for kind, objs in (('atom', model.get_atoms()),
+                               ('sphere', model.get_spheres())):
+                for obj in objs:
+                    count += 1
+                    try:
+                        checker(obj)
+                    except ValueError as e:
+                        # One finding per problem, however many models/asyms
+                        # share it: a single bad assembly can touch them all.
+                        key = (kind, _classify_range_error(str(e)))
+                        g = groups.setdefault(key, {
+                            'n': 0, 'models': {}, 'asyms': {}, 'obj': obj,
+                            'model': model._id, 'msg': str(e)})
+                        g['n'] += 1
+                        g['models'][model._id] = None
+                        g['asyms'][obj.asym_unit._id] = None
+    for (kind, (observed, expected, fix)), g in groups.items():
+        obj = g['obj']
+        if kind == 'atom':
+            where = f"model {g['model']} asym {obj.asym_unit._id} seq_id {obj.seq_id} " \
+                    f"atom {obj.atom_id}"
+            cat, key = 'atom_site', 'label_asym_id'
+        else:
+            where = f"model {g['model']} asym {obj.asym_unit._id} " \
+                    'seq_id {}-{}'.format(*obj.seq_id_range)
+            cat, key = 'ihm_sphere_obj_site', 'asym_id'
+        findings.append(Finding(
+            'ERROR', cat, key,
+            f"models {_some(g['models'])}; asyms {_some(g['asyms'])}",
+            observed=f"{g['n']} {kind}(s) {observed}; first at {where}",
+            expected=expected, evidence='python-ihm: ' + _clean(g['msg']), fix=fix))
+    return _result('representation', findings, f'{count} atoms/spheres checked')
+
+
+# ---- stage 6 -------------------------------------------------------------
+
+def stage_roundtrip(path, systems, original):
+    """Report valued items a python-ihm rewrite would drop.
+
+    `original` is the stage-1 inventory. Items whose every value is '.' or
+    '?' are not reported: dropping them loses nothing.
+    """
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = os.path.join(tmp, 'roundtrip.cif')
+            with open(out, 'w', encoding='utf-8') as fh:
+                ihm.dumper.write(fh, systems, check=False)
+            rewritten = cio.inventory(out)
+    except Exception as e:
+        return StageResult('roundtrip', 'findings', 'python-ihm could not write the file', [
+            Finding('WARNING', observed='python-ihm cannot write this entry back out',
+                    expected='a python-ihm read/write round-trip to succeed',
+                    evidence=f'{type(e).__name__}: {_clean(str(e))}',
+                    fix='the curator agent can locate the object that fails')])
+    dropped = {cat: sorted(keys - rewritten.get(cat, set()))
+               for cat, keys in original.items()}
+    dropped = {cat: keys for cat, keys in dropped.items() if keys}
+    values = cio.read_tables(path, dropped)
+    findings = []
+    for cat in sorted(dropped):
+        lost = [k for k in dropped[cat]
+                if any(row[k] is not None for row in values[cat])]
+        if not lost:
+            continue
+        what = ('the whole category' if cat not in rewritten
+                else 'items ' + ', '.join(lost))
+        findings.append(Finding(
+            'NOTE', cat,
+            observed=f'{what} would be dropped by a python-ihm rewrite',
+            expected='nothing; python-ihm does not model these items',
+            evidence='present in the input, absent after ihm.dumper.write',
+            fix='none needed; do not repair this file by rewriting it with '
+                'python-ihm, or these items are lost'))
+    return _result('roundtrip', findings, 'python-ihm read/write round-trip')
