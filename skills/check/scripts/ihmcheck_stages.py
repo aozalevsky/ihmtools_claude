@@ -455,3 +455,46 @@ def stage_roundtrip(path, systems, original):
             fix='none needed; do not repair this file by rewriting it with '
                 'python-ihm, or these items are lost'))
     return _result('roundtrip', findings, 'python-ihm read/write round-trip')
+
+
+# ---- stage 7 -------------------------------------------------------------
+
+# Accepted in atom_site even though the CCD component does not list them.
+TERMINAL_ATOMS = frozenset({'H1', 'H2', 'H3', 'OXT', 'HXT', 'OP3'})
+
+
+def stage_atom_names(path, cache_dir, offline):
+    """Compare atom_site atom names with the CCD."""
+    rows = cio.read_tables(path, {'atom_site': ['label_comp_id', 'label_atom_id']})
+    by_comp = {}
+    for r in rows['atom_site']:
+        if r['label_comp_id'] and r['label_atom_id']:
+            by_comp.setdefault(r['label_comp_id'], set()).add(r['label_atom_id'])
+    if not by_comp:
+        return StageResult('atom_names', 'ok', 'no atom_site rows')
+    findings, unchecked = [], []
+    for comp in sorted(by_comp):
+        try:
+            ccd = cio.ccd_atoms(comp, cache_dir, offline)
+        except cio.Unavailable:
+            unchecked.append(comp)
+            continue
+        current = {alt: atom for atom, alt in ccd.items() if alt and alt != atom}
+        bad = sorted(by_comp[comp] - set(ccd) - TERMINAL_ATOMS)
+        if not bad:
+            continue
+        renames = [f'{b} -> {current[b]}' for b in bad if b in current]
+        findings.append(Finding(
+            'ERROR', 'atom_site', 'label_atom_id', f'comp_id {comp}',
+            observed='atom names not in the CCD: ' + ', '.join(bad),
+            expected=f'atom names from the CCD definition of {comp}',
+            evidence=cio.CCD_URL.format(comp.upper()),
+            fix=('rename ' + ', '.join(renames)) if renames
+                else 'check these atoms against the CCD definition'))
+    if len(unchecked) == len(by_comp):
+        return StageResult('atom_names', 'not_checked',
+                           'CCD unavailable for ' + ', '.join(unchecked))
+    detail = f'{len(by_comp) - len(unchecked)} component(s) against the CCD'
+    if unchecked:
+        detail += '; CCD unavailable for ' + ', '.join(unchecked)
+    return _result('atom_names', findings, detail)
