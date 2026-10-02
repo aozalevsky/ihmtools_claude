@@ -28,6 +28,8 @@ bundled `marketplace.json`.
 4. `claude plugin validate .` passes.
 5. The plugin is fit to submit to the official directory: README, MIT
    LICENSE, accurate descriptions, no undeclared side effects.
+6. The unofficial-status disclaimer (section 6.1) is present in the README
+   and in the plugin and marketplace descriptions.
 
 ### Decisions already made
 
@@ -123,7 +125,7 @@ user phrasings and file types that should load it, and nothing broader.
   `check_entry.py <file>` (section 5), then present the findings. For each
   BLOCKER or ERROR, explain it at the user's level and propose the fix; hand
   off to the `curator` agent if the user wants the file repaired.
-- **Dependencies:** `ihm`, `gemmi` (via `uv` or the user's Python); network on
+- **Dependencies:** `ihm` and `msgpack` (via `uv` or the user's Python); network on
   first run for dictionaries.
 
 ### 3.3 `validate` — IHMValidation report
@@ -230,10 +232,10 @@ unprompted.
 ### 4.2 Running bundled scripts
 
 `check_entry.py` carries PEP 723 inline metadata
-(`dependencies = ["ihm>=2.11", "gemmi>=0.7", "msgpack"]`). Resolution order:
+(`dependencies = ["ihm>=2.11", "msgpack"]`). Resolution order:
 
 1. `uv` present → `uv run --script ${CLAUDE_PLUGIN_ROOT}/skills/check/scripts/check_entry.py ...` (isolated env; user env untouched).
-2. else the user's `python` if it imports `ihm` and `gemmi` → `python ${CLAUDE_PLUGIN_ROOT}/...`.
+2. else the user's `python` if it imports `ihm` and `msgpack` → `python ${CLAUDE_PLUGIN_ROOT}/...`.
 3. else report the install line and stop.
 
 ### 4.3 Caches
@@ -272,22 +274,25 @@ check_entry.py FILE [--json] [--check-atom-names] [--cache-dir DIR] [--offline]
 stage is reported and the rest continue, except that a stage-1 parse failure
 skips all later stages, since every one of them needs a parsed file.
 
-BinaryCIF: gemmi's Python API (0.7.5) reads only text and gzipped CIF, while
-python-ihm reads BinaryCIF with `format='BCIF'` (needs `msgpack`). For a
-`.bcif` input, stage 1 is performed by python-ihm's reader (parse only, no
-inventory), stages 2–6 run with `format='BCIF'`, and stage 7 is reported
-NOT CHECKED (bcif). The script's inline dependencies therefore include
-`msgpack`.
+File access: the checker reads files only through python-ihm's low-level
+readers (`ihm.format.CifReader`, `ihm.format_bcif.BinaryCifReader`) with
+generic collecting handlers, so `.cif`, `.cif.gz`, and `.bcif` are handled
+by one code path and every stage works for every format. (gemmi's Python API
+in 0.7.5 cannot read BinaryCIF, which is why the checker does not use it;
+gemmi remains part of the agent's and skills' repair tooling.) The category
+and keyword inventory comes from the readers' unknown-category and
+unknown-keyword callbacks, which see both loop and single-row (pair)
+categories. The script's inline dependencies are `ihm>=2.11` and `msgpack`.
 
 | # | Stage | Tool | Reports |
 |---|---|---|---|
-| 1 | Parse and inventory | gemmi (mmCIF) / python-ihm (BCIF) | Syntax errors (BLOCKER). For mmCIF, category inventory from both loop and pair items. |
-| 2 | Dictionary validation | `ihm.dictionary`, PDBx + IHM merged | Each `ValidatorError` item as ERROR, anchored to `_category.keyword`. If dictionaries cannot be obtained (offline, no cache), the stage is NOT CHECKED, never passed. |
-| 3 | Semantic read | `ihm.reader.read(..., warn_unknown_category=True, warn_unknown_keyword=True)` | Exception → BLOCKER. Unknown-category/keyword warnings are not emitted directly; they are only reported if stage 2 also flags the item. |
-| 4 | Linkage | python-ihm object graph | Restraints or model groups referring to missing ids (ERROR); datasets referenced by no restraint or starting model (WARNING). |
-| 5 | Representation consistency | python-ihm object graph | Segments declared coarse-grained that carry atoms, or atomic segments that carry spheres/Gaussians (ERROR). |
-| 6 | Round-trip | `ihm.dumper.write` + category/item diff | Items present in the original and absent from the round-trip, as NOTE "not modeled by python-ihm". Never an error. |
-| 7 | Atom names vs. CCD (opt-in `--check-atom-names`) | gemmi + CCD downloads | Distinct `(comp_id, atom_id)` pairs in `atom_site` missing from the component's `_chem_comp_atom.atom_id` set (ERROR), e.g. PDB v2.3 hydrogen names. |
+| 1 | Parse and inventory | python-ihm low-level reader | Syntax errors (`CifParserError`) as BLOCKER. Inventory of all categories and keywords. |
+| 2 | Dictionary validation | `ihm.dictionary`, PDBx + IHM merged | Each distinct `ValidatorError` problem as ERROR, anchored to `_category.keyword`; per-row repeats are grouped into one finding with a row count and up to 5 example values. If dictionaries cannot be obtained (offline, no cache), the stage is NOT CHECKED, never passed. |
+| 3 | Semantic read | `ihm.reader.read(...)` | Exception → BLOCKER. Unknown-category/keyword warnings are never emitted (python-ihm raises ~30 of them even on files it wrote itself); items genuinely outside the dictionary are reported by stage 2. |
+| 4 | Linkage | collected tables | Datasets referenced by no restraint, feature/probe, or starting model (WARNING). A dataset also counts as used when it is the primary of a used dataset in `ihm_related_datasets`, transitively (needed for e.g. 9A8W). When stage 2 did not run, also reports dangling references for a fixed set of core IHM parent/child links (ERROR); when stage 2 ran, it already reports those. |
+| 5 | Representation consistency | `ihm.dumper._RangeChecker` per atom/sphere | Atoms or spheres python-ihm would refuse to write: wrong primitive for the covering segment (atoms in a coarse-grained segment, spheres in an atomic one), outside the representation or assembly, duplicate atoms. Grouped per model, asym, and problem (ERROR). If the private `_RangeChecker` is unavailable in the installed python-ihm, NOT CHECKED. |
+| 6 | Round-trip | `ihm.dumper.write(..., check=False)` + inventory diff | Per category: items present in the original and absent from the round-trip, as one NOTE "not modeled by python-ihm". Never an error. |
+| 7 | Atom names vs. CCD (opt-in `--check-atom-names`) | collected tables + CCD downloads | Per component: `atom_site.label_atom_id` values absent from the CCD `_chem_comp_atom.atom_id` set (ERROR), e.g. PDB v2.3 hydrogen names. When a name matches a CCD `alt_atom_id`, the fix names the current atom id (e.g. `1HB` → `HB2`). Terminal variants `H1 H2 H3 OXT HXT OP3` are accepted. Components whose CCD file cannot be fetched are listed as not checked. |
 
 **Text output** (default), most severe first:
 
@@ -311,9 +316,10 @@ NOT CHECKED when the cache is empty.
 ## 6. Distribution
 
 - `plugin.json`: `name: "ihmtools"`, semver `version` starting at `0.1.0`,
-  description, `author: {"name": "Sali Lab"}`, `license: "MIT"`. `homepage`
-  and `repository` are added when the GitHub home is chosen (section 1); the
-  author field is revisited at the same time.
+  description beginning with "Unofficial", `author: {"name": "Arthur Zalevsky"}`
+  (an individual, not an institution; see 6.1), `license: "MIT"`. `homepage`
+  and `repository` are added when the GitHub home is chosen (section 1).
+- `marketplace.json`: `owner: {"name": "Arthur Zalevsky"}`.
 - `marketplace.json`: a single-plugin marketplace whose source is `./`, so the
   repo is installable as soon as it is on GitHub.
 - Official directory: after the GitHub repo exists and a tagged release
@@ -321,6 +327,34 @@ NOT CHECKED when the cache is empty.
   plugin `name` is immutable once published; `displayName` can change.
 - Release tags via `claude plugin tag` so `plugin.json` and the marketplace
   entry agree.
+
+### 6.1 Disclaimer
+
+The plugin is unofficial. The following text appears verbatim at the top of
+`README.md`, directly under the title:
+
+> **Unofficial plugin.** ihmtools is an independent project. It is not
+> affiliated with, endorsed by, or supported by RCSB PDB, Rutgers, The State
+> University of New Jersey, or the University of California, San Francisco
+> (UCSF). PDB-IHM, IHMValidation, python-ihm, and the `ihmv`/`ihmdep`
+> command-line tools are developed and maintained by their own authors; this
+> plugin only helps Claude use them. Names are used solely to identify those
+> tools and services.
+
+and in short form as the first sentence of the `plugin.json` and
+`marketplace.json` descriptions: "Unofficial, community plugin, not
+affiliated with RCSB PDB, Rutgers, or UCSF."
+
+Consequences:
+
+- `author`/`owner` name an individual, never an institution or lab.
+- The GitHub home should be a personal account or a neutral organization,
+  not `salilab`, `ihmwg`, or `rcsb`, whose ownership would imply affiliation.
+- Skills and the agent never present their output as an official PDB-IHM
+  assessment. A report produced by `ihmv` is described as "the IHMValidation
+  report from validate.pdb-ihm.org"; anything the plugin itself produces
+  (e.g. `check_entry.py` findings) is described as a local pre-check, not
+  as validation by PDB-IHM.
 
 ## 7. Testing
 
