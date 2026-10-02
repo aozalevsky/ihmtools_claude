@@ -25,6 +25,7 @@ EXPECTED_FILES = [
     'skills/ihmcif/SKILL.md',
     'skills/ihmcif/references/data-model.md',
     'skills/ihmcif/references/tooling.md',
+    'skills/check/SKILL.md',
 ]
 SKILLS = sorted(p.parent for p in ROOT.glob('skills/*/SKILL.md'))
 AGENTS = sorted(ROOT.glob('agents/*.md'))
