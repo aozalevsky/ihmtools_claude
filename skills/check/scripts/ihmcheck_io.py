@@ -4,6 +4,7 @@ Every read goes through python-ihm's low-level readers, so .cif, .cif.gz and
 .bcif files share one code path.
 """
 import gzip
+import http.client
 import os
 import re
 import time
@@ -18,6 +19,11 @@ import ihm.format_bcif
 DICT_URL = 'https://mmcif.wwpdb.org/dictionaries/ascii/'
 DICT_FILES = ('mmcif_pdbx_v50.dic', 'mmcif_ihm_ext.dic')
 CCD_URL = 'https://files.rcsb.org/ligands/download/{}.cif'
+# Text every genuine file contains; a proxy or error page served with
+# status 200 does not, so it is never cached or used.
+SENTINELS = {'mmcif_pdbx_v50.dic': b'save_atom_site',
+             'mmcif_ihm_ext.dic': b'save_ihm_dataset_list',
+             'ccd': b'_chem_comp_atom.atom_id'}
 MAX_AGE = 30 * 24 * 3600
 _COMP_ID = re.compile(r'[A-Za-z0-9]{1,5}')
 
@@ -101,27 +107,43 @@ def cache_root(override=None):
     return Path(base) / 'ihmtools'
 
 
-def fetch_cached(url, dest, offline, max_age=MAX_AGE):
+def _usable(path, sentinel):
+    return path.is_file() and (sentinel is None or sentinel in path.read_bytes())
+
+
+def fetch_cached(url, dest, offline, max_age=MAX_AGE, sentinel=None):
     """Return a local path for `url`, downloading into `dest` when needed.
 
     A cached copy younger than `max_age` seconds is used as is. An older
-    copy is refreshed when possible and used as a fallback when not.
-    Raises Unavailable when there is no copy and none can be downloaded.
+    copy is refreshed when possible and used as a fallback when not. With
+    `sentinel`, a file (cached or downloaded) that does not contain those
+    bytes is never used or kept. Raises Unavailable when there is no usable
+    copy and none can be downloaded.
     """
     dest = Path(dest)
-    if dest.exists() and (offline or time.time() - dest.stat().st_mtime < max_age):
+    usable = _usable(dest, sentinel)
+    if usable and (offline or time.time() - dest.stat().st_mtime < max_age):
         return dest
     if offline:
-        raise Unavailable(f'{dest.name} is not cached and --offline was given')
+        raise Unavailable(f'{dest.name} is not cached (or not valid) and --offline '
+                          'was given')
+    part = dest.with_name(dest.name + '.part')
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        part = dest.with_name(dest.name + '.part')
         with urllib.request.urlopen(url, timeout=60) as resp, open(part, 'wb') as fh:
             fh.write(resp.read())
+        if not _usable(part, sentinel):
+            part.unlink()
+            if usable:
+                return dest
+            raise Unavailable(f'{url}: the download is not a valid file '
+                              '(a proxy or error page?)')
         os.replace(part, dest)
         return dest
-    except (urllib.error.URLError, OSError) as e:
-        if dest.exists():
+    except (urllib.error.URLError, http.client.HTTPException, OSError) as e:
+        if part.exists():
+            part.unlink()
+        if usable:
             return dest
         raise Unavailable(f'{url}: {e}') from e
 
@@ -131,7 +153,7 @@ def load_dictionary(cache_dir, offline):
     merged = None
     for name in DICT_FILES:
         path = fetch_cached(DICT_URL + name, Path(cache_dir) / 'dictionaries' / name,
-                            offline)
+                            offline, sentinel=SENTINELS[name])
         with open(path, encoding='utf-8') as fh:
             d = ihm.dictionary.read(fh)
         merged = d if merged is None else merged + d
@@ -144,6 +166,7 @@ def ccd_atoms(comp_id, cache_dir, offline):
         raise Unavailable(f'{comp_id!r} is not a valid CCD component id')
     comp_id = comp_id.upper()
     path = fetch_cached(CCD_URL.format(comp_id),
-                        Path(cache_dir) / 'ccd' / f'{comp_id}.cif', offline)
+                        Path(cache_dir) / 'ccd' / f'{comp_id}.cif', offline,
+                        sentinel=SENTINELS['ccd'])
     rows = read_tables(path, {'chem_comp_atom': ['atom_id', 'alt_atom_id']})
     return {r['atom_id']: r['alt_atom_id'] for r in rows['chem_comp_atom']}

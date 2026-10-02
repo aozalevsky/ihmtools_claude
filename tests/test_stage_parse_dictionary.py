@@ -114,3 +114,14 @@ def test_dictionary_repeated_violation_grouped(write_entry, valid_cif, online_ca
     # the validator reports keywords lowercased
     [f] = picked(result.findings, 'ERROR', 'atom_site', 'group_pdb')
     assert f.observed.startswith('value not in enumeration (3 rows): ATOMX')
+
+
+def test_dictionary_corrupt_cache_is_not_checked_not_fail(tmp_path, write_entry,
+                                                         valid_cif):
+    folder = tmp_path / 'dictionaries'
+    folder.mkdir()
+    for name in ('mmcif_pdbx_v50.dic', 'mmcif_ihm_ext.dic'):
+        (folder / name).write_text('<html>proxy error</html>')
+    result = st.stage_dictionary(write_entry(valid_cif), tmp_path, offline=True)
+    assert result.status == 'not_checked'
+    assert result.findings == []

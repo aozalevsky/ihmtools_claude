@@ -1,4 +1,6 @@
 import gzip
+import http.client
+import io
 import os
 import stat
 
@@ -129,3 +131,66 @@ def test_unwritable_cache_dir_is_unavailable_not_a_crash(tmp_path):
                              offline=False)
     finally:
         readonly.chmod(stat.S_IRWXU)
+
+
+# ---- review fix: downloads and cached files must be the real thing ----------
+
+PORTAL = b'<html><body>Please sign in to the network</body></html>'
+
+
+def serve(monkeypatch, payload=None, error=None):
+    """Make urlopen return `payload` bytes, or raise `error`."""
+    def fake(*args, **kwargs):
+        if error is not None:
+            raise error
+        return io.BytesIO(payload)
+    monkeypatch.setattr(cio.urllib.request, 'urlopen', fake)
+
+
+def test_download_failing_validation_is_discarded(tmp_path, monkeypatch):
+    serve(monkeypatch, PORTAL)
+    dest = tmp_path / 'x.dic'
+    with pytest.raises(cio.Unavailable, match='not a valid'):
+        cio.fetch_cached('https://example.invalid/x.dic', dest, offline=False,
+                         sentinel=b'save_atom_site')
+    assert list(tmp_path.iterdir()) == []          # no dest, no leftover .part
+
+
+def test_invalid_download_falls_back_to_valid_stale_cache(tmp_path, monkeypatch):
+    dest = tmp_path / 'x.dic'
+    dest.write_bytes(b'data_x\nsave_atom_site\n')
+    os.utime(dest, (0, 0))
+    serve(monkeypatch, PORTAL)
+    assert cio.fetch_cached('https://example.invalid/x.dic', dest, offline=False,
+                            sentinel=b'save_atom_site') == dest
+    assert dest.read_bytes() == b'data_x\nsave_atom_site\n'
+
+
+def test_invalid_cached_file_is_never_used(tmp_path):
+    dest = tmp_path / 'x.dic'
+    dest.write_bytes(PORTAL)                        # fresh, but garbage
+    with pytest.raises(cio.Unavailable):
+        cio.fetch_cached('https://example.invalid/x.dic', dest, offline=True,
+                         sentinel=b'save_atom_site')
+
+
+def test_dropped_connection_is_unavailable(tmp_path, monkeypatch):
+    serve(monkeypatch, error=http.client.IncompleteRead(b'partial'))
+    with pytest.raises(cio.Unavailable):
+        cio.fetch_cached('https://example.invalid/x', tmp_path / 'x', offline=False)
+
+
+def test_corrupt_cached_dictionaries_are_unavailable(tmp_path):
+    folder = tmp_path / 'dictionaries'
+    folder.mkdir()
+    for name in cio.DICT_FILES:
+        (folder / name).write_bytes(PORTAL)
+    with pytest.raises(cio.Unavailable):
+        cio.load_dictionary(tmp_path, offline=True)
+
+
+def test_corrupt_cached_ccd_file_is_unavailable(tmp_path):
+    (tmp_path / 'ccd').mkdir()
+    (tmp_path / 'ccd' / 'MET.cif').write_bytes(PORTAL)
+    with pytest.raises(cio.Unavailable):
+        cio.ccd_atoms('MET', tmp_path, offline=True)
