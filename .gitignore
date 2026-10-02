@@ -3,3 +3,6 @@ __pycache__/
 .pytest_cache/
 ihmtools-work/
 *_validation/
+
+# design records (spec, plan): kept locally, not shipped with the plugin
+docs/superpowers/
