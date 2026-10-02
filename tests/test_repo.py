@@ -31,6 +31,7 @@ EXPECTED_FILES = [
     'skills/build/SKILL.md',
     'skills/build/references/python-ihm-patterns.md',
     'skills/deposit/SKILL.md',
+    'agents/curator.md',
 ]
 SKILLS = sorted(p.parent for p in ROOT.glob('skills/*/SKILL.md'))
 AGENTS = sorted(ROOT.glob('agents/*.md'))
