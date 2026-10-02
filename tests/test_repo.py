@@ -21,6 +21,7 @@ SHIPPED = ['.claude-plugin', 'skills', 'agents', 'scripts', 'README.md']
 EXPECTED_FILES = [
     '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'README.md',
     'LICENSE', '.gitignore', 'pytest.ini',
+    'scripts/probe.sh',
 ]
 SKILLS = sorted(p.parent for p in ROOT.glob('skills/*/SKILL.md'))
 AGENTS = sorted(ROOT.glob('agents/*.md'))
