@@ -1,0 +1,19 @@
+{
+  "name": "ihmtools",
+  "version": "0.1.0",
+  "description": "Unofficial, community plugin, not affiliated with RCSB PDB, Rutgers, or UCSF. Helps Claude build, check, validate, and deposit integrative structures (IHMCIF) for PDB-IHM using python-ihm, IHMValidation, and the ihmv/ihmdep CLIs.",
+  "author": {
+    "name": "Arthur Zalevsky"
+  },
+  "homepage": "https://github.com/aozalevsky/ihmtools_claude",
+  "repository": "https://github.com/aozalevsky/ihmtools_claude",
+  "license": "MIT",
+  "keywords": [
+    "pdb-ihm",
+    "ihmcif",
+    "integrative-modeling",
+    "structural-biology",
+    "mmcif",
+    "validation"
+  ]
+}

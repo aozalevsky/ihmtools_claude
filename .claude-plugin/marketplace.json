@@ -1,0 +1,17 @@
+{
+  "name": "ihmtools",
+  "owner": {
+    "name": "Arthur Zalevsky"
+  },
+  "description": "Unofficial, community plugin, not affiliated with RCSB PDB, Rutgers, or UCSF. Claude Code plugin for integrative structures and PDB-IHM.",
+  "plugins": [
+    {
+      "name": "ihmtools",
+      "source": "./",
+      "description": "Unofficial, community plugin, not affiliated with RCSB PDB, Rutgers, or UCSF. Build, check, validate, and deposit integrative structures (IHMCIF) for PDB-IHM.",
+      "version": "0.1.0",
+      "homepage": "https://github.com/aozalevsky/ihmtools_claude",
+      "category": "science"
+    }
+  ]
+}
