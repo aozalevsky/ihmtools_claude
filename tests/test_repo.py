@@ -22,6 +22,9 @@ EXPECTED_FILES = [
     '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'README.md',
     'LICENSE', '.gitignore', 'pytest.ini',
     'scripts/probe.sh',
+    'skills/ihmcif/SKILL.md',
+    'skills/ihmcif/references/data-model.md',
+    'skills/ihmcif/references/tooling.md',
 ]
 SKILLS = sorted(p.parent for p in ROOT.glob('skills/*/SKILL.md'))
 AGENTS = sorted(ROOT.glob('agents/*.md'))
