@@ -23,6 +23,7 @@ import ihmcheck_io as cio  # noqa: E402
 import ihmcheck_stages as st  # noqa: E402
 
 CORE_STAGES = ('parse', 'dictionary', 'read', 'linkage', 'representation', 'roundtrip')
+NOT_REQUESTED = 'not requested (use --check-atom-names)'
 _RANK = {s: i for i, s in enumerate(st.SEVERITIES)}
 
 
@@ -61,7 +62,7 @@ def run_checks(path, cache_dir=None, offline=False, atom_names=False):
         results.append(_guard('atom_names', st.stage_atom_names, path, cache, offline))
     else:
         results.append(st.StageResult('atom_names', 'not_checked',
-                                      'not requested (use --check-atom-names)'))
+                                      NOT_REQUESTED))
     return results
 
 
@@ -71,10 +72,11 @@ def findings_of(results):
 
 
 def verdict(results):
-    """FAIL on any BLOCKER/ERROR; INCOMPLETE if a core stage did not run."""
+    """FAIL on any BLOCKER/ERROR; INCOMPLETE if a core or requested stage did not run."""
     if any(f.severity in ('BLOCKER', 'ERROR') for f in findings_of(results)):
         return 'FAIL'
-    if any(r.name in CORE_STAGES and r.status in ('not_checked', 'error')
+    if any(r.status in ('not_checked', 'error')
+           and (r.name in CORE_STAGES or r.detail != NOT_REQUESTED)
            for r in results):
         return 'INCOMPLETE'
     return 'PASS'

@@ -4,6 +4,7 @@ import re
 import pytest
 
 import check_entry
+import ihmcheck_stages as st
 from conftest import picked, replace_once, to_bcif
 
 
@@ -131,3 +132,12 @@ def test_dangling_reference_reported_once(capsys, write_entry, valid_cif, online
     assert code == 1
     [f] = picked(report['findings'], 'ERROR', 'ihm_cross_link_list', 'dataset_list_id')
     assert f['evidence'].startswith('ihm.dictionary')
+
+
+def test_requested_atom_name_check_that_did_not_run_is_incomplete():
+    core_ok = [st.StageResult(name, 'ok') for name in check_entry.CORE_STAGES]
+    not_requested = st.StageResult('atom_names', 'not_checked', check_entry.NOT_REQUESTED)
+    requested_but_unavailable = st.StageResult('atom_names', 'not_checked',
+                                               'CCD unavailable for ALA, ARG')
+    assert check_entry.verdict(core_ok + [not_requested]) == 'PASS'
+    assert check_entry.verdict(core_ok + [requested_but_unavailable]) == 'INCOMPLETE'
