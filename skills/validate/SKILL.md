@@ -34,7 +34,10 @@ and ask before installing. The local route needs `apptainer` (or
    is the account they mean.
 3. **Confirm the upload.** Say: "This uploads `<file>`, an unreleased
    structure, to the PDB-IHM validation server as `<account>`. Proceed?"
-   Wait for an explicit yes.
+   Then end your turn and run the upload only after an explicit yes in the
+   user's next message. A request that already names the file, server, or
+   options is not the confirmation: the user has not yet seen which account
+   the upload will use.
 4. **Upload.** Run `ihmv upload <file>` and record the RID it prints. Use the
    production server unless the user explicitly asks for `--mode dev`. If
    ihmv reports that the file was already submitted, tell the user and ask

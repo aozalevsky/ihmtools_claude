@@ -7,8 +7,10 @@ argument-hint: <file.cif> [--image file.png] | status [RID]
 # Deposit to PDB-IHM with ihmdep
 
 Every state-changing action needs explicit confirmation from the user, every
-time, naming the entry and the action. Reading status and downloading are
-free.
+time, naming the entry and the action: ask, end your turn, and act only on a
+yes in the user's next message. A request that already names the file, server,
+or options is not the confirmation: the user has not yet seen which account
+and which entry the action will use. Reading status and downloading are free.
 
 ## Probe and account
 
