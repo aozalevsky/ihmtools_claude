@@ -32,3 +32,16 @@ def test_obsolete_hydrogen_name_gets_rename(write_entry, online_cache):
     assert f.row == 'comp_id MET'
     assert f.observed == 'atom names not in the CCD: 1HB'
     assert f.fix == 'rename 1HB -> HB2'
+
+
+def test_five_prime_terminal_hydroxyl_hydrogen_is_accepted(tmp_path, write_entry):
+    # wwPDB names the 5'-OH hydrogen of a terminal nucleotide HO5'; the CCD
+    # entry for DA (with its 5' phosphate) does not list it.
+    (tmp_path / 'ccd').mkdir()
+    (tmp_path / 'ccd' / 'DA.cif').write_text(
+        "data_DA\nloop_\n_chem_comp_atom.comp_id\n_chem_comp_atom.atom_id\n"
+        "_chem_comp_atom.alt_atom_id\nDA P P\nDA \"O5'\" \"O5*\"\nDA \"HO3'\" \"H3T\"\n")
+    path = write_entry("data_x\nloop_\n_atom_site.label_comp_id\n"
+                       "_atom_site.label_atom_id\nDA \"O5'\"\nDA \"HO5'\"\n")
+    result = st.stage_atom_names(path, tmp_path, offline=True)
+    assert result.status == 'ok', result.findings

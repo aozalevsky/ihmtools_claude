@@ -460,7 +460,7 @@ def stage_roundtrip(path, systems, original):
 # ---- stage 7 -------------------------------------------------------------
 
 # Accepted in atom_site even though the CCD component does not list them.
-TERMINAL_ATOMS = frozenset({'H1', 'H2', 'H3', 'OXT', 'HXT', 'OP3'})
+TERMINAL_ATOMS = frozenset({'H1', 'H2', 'H3', 'OXT', 'HXT', 'OP3', "HO5'"})
 
 
 def stage_atom_names(path, cache_dir, offline):
