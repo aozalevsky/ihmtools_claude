@@ -66,8 +66,9 @@ def _read(path, handlers, **callbacks):
                   if file_format(path) == 'BCIF' else ihm.format.CifReader)
     with open_entry(path) as fh:
         reader = reader_cls(fh, handlers, **callbacks)
-        while reader.read_file():
-            pass
+        more = True
+        while more:                     # one data block per call
+            more = reader.read_file()
 
 
 def read_tables(path, wanted):

@@ -145,3 +145,15 @@ def test_listing_icon_is_a_square_png_within_directory_limits():
     width, height = struct.unpack('>II', data[16:24])     # IHDR
     assert width == height and 512 <= width <= 2048
     assert len(data) < 2 * 1024 * 1024
+
+
+@pytest.mark.parametrize('pattern', [r'\bpass\b', r'\bpasses\b', r'password', r'token',
+                                     r'secret', r'api[ _-]?key', r'credential'])
+def test_no_credential_like_wording_is_shipped(pattern):
+    # The plugin directory scan reads words like these beside a server name as
+    # "a credential sent to that host". The plugin reads no credentials: ihmv and
+    # ihmdep keep their own login, which the user runs.
+    hits = [f'{p.relative_to(ROOT)}:{n}' for p in _shipped_text_files()
+            for n, line in enumerate(p.read_text(encoding='utf-8').splitlines(), 1)
+            if re.search(pattern, line)]
+    assert hits == []

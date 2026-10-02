@@ -1,6 +1,6 @@
 ---
 name: check
-description: Local pre-check of an integrative-structure file (IHMCIF .cif, .cif.gz, or .bcif) before PDB-IHM validation or deposition. Checks syntax, PDBx/IHM dictionary compliance, python-ihm readability, dataset linkage, representation consistency, and optionally atom names against the CCD. Use when the user asks to check, lint, or sanity-check an IHM/IHMCIF/mmCIF integrative model, asks whether a file will pass validation or deposition, or before uploading with the validate or deposit skills.
+description: Local pre-check of an integrative-structure file (IHMCIF .cif, .cif.gz, or .bcif) before PDB-IHM validation or deposition. Checks syntax, PDBx/IHM dictionary compliance, python-ihm readability, dataset linkage, representation consistency, and optionally atom names against the CCD. Use when the user asks to check, lint, or sanity-check an IHM/IHMCIF/mmCIF integrative model, asks whether a file is ready for validation or deposition, or before uploading with the validate or deposit skills.
 argument-hint: <file.cif|file.cif.gz|file.bcif> [--check-atom-names]
 ---
 
@@ -47,7 +47,7 @@ run (unreadable file, bad arguments).
 ## 3. Report
 
 - Lead with the verdict line. INCOMPLETE means some stage did not run: list
-  which and why, and do not present it as a pass.
+  which and why, and do not present it as a clean result.
 - Give BLOCKERs and ERRORs first. For each, explain at the user's level what
   is wrong, where (`_category.keyword`, row), and the fix the report gives.
 - If the first finding says the file has no `ihm_*` categories, address that

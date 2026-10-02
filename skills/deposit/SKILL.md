@@ -19,7 +19,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/probe.sh"
 ```
 
 `ihmdep` comes with `pip install ihmtools`; ask before installing. Then run
-`ihmdep whoami`. If there are no credentials, ask the user to type
+`ihmdep whoami`. If it reports that nobody is logged in, ask the user to type
 `! ihmdep login` (it prints a Globus URL and reads back a code). One login
 covers both `ihmv` and `ihmdep`. Confirm the account is the one they mean.
 

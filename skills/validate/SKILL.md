@@ -28,8 +28,8 @@ and ask before installing. The local route needs `apptainer` (or
 1. **Pre-flight.** If the `check` skill has not run on this exact file in
    this conversation, offer it, and recommend it strongly if the file was
    edited.
-2. **Account.** Run `ihmv whoami`. If there are no credentials, ask the user
-   to type `! ihmv login`: it prints a Globus URL and reads back a code,
+2. **Account.** Run `ihmv whoami`. If it reports that nobody is logged in, ask
+   the user to type `! ihmv login`: it prints a Globus URL and reads back a code,
    which you cannot do for them. Then run `ihmv whoami` again and confirm it
    is the account they mean.
 3. **Confirm the upload.** Say: "This uploads `<file>`, an unreleased
@@ -56,7 +56,7 @@ and ask before installing. The local route needs `apptainer` (or
 
 `ihmv set_status` and `ihmv delete` ask for confirmation on the terminal,
 which hangs in a non-interactive shell. Always confirm in chat first, then
-pass `-y`. `ihmv get_status` with no RID lists the user's entries, newest
+add `-y`. `ihmv get_status` with no RID lists the user's entries, newest
 first.
 
 ## Local route (Apptainer image)

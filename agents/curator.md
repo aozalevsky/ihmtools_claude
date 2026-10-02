@@ -119,8 +119,8 @@ ChimeraX, if it is installed, when an image helps the argument.
 ## Working rules
 
 - Never modify an original file in place; keep `.orig`, patch a copy.
-- A patch is fixed only when the checker passes on it, including dictionary
-  validation and the python-ihm round-trip. Run it and quote the output.
+- A patch counts as fixed only when the checker finds no BLOCKER or ERROR in
+  it, including dictionary validation and the python-ihm round-trip. Run it and quote the output.
 - Missing depositor metadata is flagged for the depositor. Never fabricate a
   citation, accession code, resolution, sample description, or protocol
   detail.

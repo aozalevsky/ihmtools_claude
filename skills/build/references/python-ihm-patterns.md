@@ -178,7 +178,7 @@ system.ensembles.append(ihm.model.Ensemble(
 - **Alphabets are keyed differently** (see above).
 - **Representation must match the coordinates.** `ihm.dumper.write` raises
   `ValueError` when an atom falls in a sphere segment, or outside the
-  representation or assembly. Fix the representation; do not pass
+  representation or assembly. Fix the representation; do not use
   `check=False` to get a file out.
 - **Coarse-grained crosslinks** onto a bead spanning several residues must be
   `FeatureCrossLink`, not `ResidueCrossLink`.
