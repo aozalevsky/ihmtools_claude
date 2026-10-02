@@ -19,7 +19,8 @@ bundled `marketplace.json`.
 
 ### Success criteria
 
-1. `/plugin marketplace add <repo>` followed by `/plugin install ihmtools@<marketplace>` works.
+1. `/plugin marketplace add aozalevsky/ihmtools_claude` followed by
+   `/plugin install ihmtools@ihmtools` works.
 2. On a fresh machine with only `pip install ihm gemmi ihmtools` (or with `uv`
    and nothing else installed), every skill completes its smoke scenario
    (section 7) on entries 9A9W (atomic) and 9A8W (coarse-grained).
@@ -38,7 +39,7 @@ bundled `marketplace.json`.
 | Audience | Both, tiered: depositor/modeler workflows are the default surface; curator-depth repair and triage sit behind them. |
 | How reports are produced | Default: `ihmv` against validate.pdb-ihm.org. Optional: a user-supplied local `ihmv.sif` Apptainer image. The plugin never builds the image. |
 | Architecture | Skills + one agent + small bundled Python scripts. No MCP server in v1. |
-| Source location | This directory (`claude_plugin/`) for now; GitHub home decided later. |
+| Source location | https://github.com/aozalevsky/ihmtools_claude (personal account, consistent with 6.1); developed in this directory, which tracks that repository. |
 | Package availability | `ihm` 2.11, `gemmi` 0.7.5, and `ihmtools` 0.0.1a13 are all on PyPI. `ihmtools` has only pre-releases, so plain `pip install ihmtools` resolves to the latest alpha. |
 
 ### Out of scope for v1
@@ -317,8 +318,8 @@ NOT CHECKED when the cache is empty.
 
 - `plugin.json`: `name: "ihmtools"`, semver `version` starting at `0.1.0`,
   description beginning with "Unofficial", `author: {"name": "Arthur Zalevsky"}`
-  (an individual, not an institution; see 6.1), `license: "MIT"`. `homepage`
-  and `repository` are added when the GitHub home is chosen (section 1).
+  (an individual, not an institution; see 6.1), `license: "MIT"`,
+  `homepage` and `repository`: `https://github.com/aozalevsky/ihmtools_claude`.
 - `marketplace.json`: `owner: {"name": "Arthur Zalevsky"}`.
 - `marketplace.json`: a single-plugin marketplace whose source is `./`, so the
   repo is installable as soon as it is on GitHub.
@@ -348,8 +349,8 @@ affiliated with RCSB PDB, Rutgers, or UCSF."
 Consequences:
 
 - `author`/`owner` name an individual, never an institution or lab.
-- The GitHub home should be a personal account or a neutral organization,
-  not `salilab`, `ihmwg`, or `rcsb`, whose ownership would imply affiliation.
+- The GitHub home is a personal account (`aozalevsky/ihmtools_claude`), not
+  `salilab`, `ihmwg`, or `rcsb`, whose ownership would imply affiliation.
 - Skills and the agent never present their output as an official PDB-IHM
   assessment. A report produced by `ihmv` is described as "the IHMValidation
   report from validate.pdb-ihm.org"; anything the plugin itself produces
