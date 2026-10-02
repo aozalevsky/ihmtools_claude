@@ -1,6 +1,7 @@
 """Repository-level checks: manifests, disclaimer, skills, agents, portability."""
 import json
 import re
+import struct
 from pathlib import Path
 
 import pytest
@@ -134,3 +135,13 @@ def test_nothing_machine_specific_is_shipped(pattern):
     hits = [str(p.relative_to(ROOT)) for p in _shipped_text_files()
             if pattern in p.read_text(encoding='utf-8')]
     assert hits == []
+
+
+def test_listing_icon_is_a_square_png_within_directory_limits():
+    # Plugin directory: square PNG/JPEG, 512-2048 px per side, under 2 MB.
+    icon = ROOT / '.claude-plugin' / 'icon.png'
+    data = icon.read_bytes()
+    assert data[:8] == b'\x89PNG\r\n\x1a\n'
+    width, height = struct.unpack('>II', data[16:24])     # IHDR
+    assert width == height and 512 <= width <= 2048
+    assert len(data) < 2 * 1024 * 1024
